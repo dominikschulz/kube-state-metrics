@@ -215,7 +215,7 @@ func initializeMetricCollection(kubeClient clientset.Interface) {
 	dlw := cache.NewListWatchFromClient(eclient, "deployments", api.NamespaceAll, nil)
 	plw := cache.NewListWatchFromClient(cclient, "pods", api.NamespaceAll, nil)
 	nlw := cache.NewListWatchFromClient(cclient, "nodes", api.NamespaceAll, nil)
-	rclw := cache.NewListWatchFromClient(cclient, "rcs", api.NamespaceAll, nil)
+	rclw := cache.NewListWatchFromClient(cclient, "rc", api.NamespaceAll, nil)
 	rslw := cache.NewListWatchFromClient(eclient, "replicasets", api.NamespaceAll, nil)
 
 	dsinf := cache.NewSharedInformer(dslw, &v1beta1.DaemonSet{}, resyncPeriod)
@@ -269,12 +269,9 @@ func initializeMetricCollection(kubeClient clientset.Interface) {
 
 	prometheus.MustRegister(&daemonsetCollector{store: dsLister})
 	prometheus.MustRegister(&deploymentCollector{store: dplLister})
-	prometheus.MustRegister(&podCollector{store: podLister})
 	prometheus.MustRegister(&nodeCollector{store: nodeLister})
+	prometheus.MustRegister(&podCollector{store: podLister})
 	prometheus.MustRegister(&replicasetCollector{store: replicaSetLister})
-	prometheus.MustRegister(&deploymentCollector{store: dplLister})
-	prometheus.MustRegister(&podCollector{store: podLister})
-	prometheus.MustRegister(&nodeCollector{store: nodeLister})
 	prometheus.MustRegister(&replicationcontrollerCollector{store: replicationControllerLister})
 
 	go dsinf.Run(context.Background().Done())
