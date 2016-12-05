@@ -193,6 +193,12 @@ func (l NodeLister) List() (v1.NodeList, error) {
 	return l()
 }
 
+type ReplicaSetLister func() ([]v1beta1.ReplicaSet, error)
+
+func (l ReplicaSetLister) List() ([]v1beta1.ReplicaSet, error) {
+	return l()
+}
+
 // initializeMetricCollection creates and starts informers and initializes and
 // registers metrics for collection.
 func initializeMetricCollection(kubeClient clientset.Interface) {
@@ -203,11 +209,13 @@ func initializeMetricCollection(kubeClient clientset.Interface) {
 	dlw := cache.NewListWatchFromClient(eclient, "deployments", api.NamespaceAll, nil)
 	plw := cache.NewListWatchFromClient(cclient, "pods", api.NamespaceAll, nil)
 	nlw := cache.NewListWatchFromClient(cclient, "nodes", api.NamespaceAll, nil)
+	rslw := cache.NewListWatchFromClient(eclient, "replicasets", api.NamespaceAll, nil)
 
 	dsinf := cache.NewSharedInformer(dslw, &v1beta1.DaemonSet{}, resyncPeriod)
 	dinf := cache.NewSharedInformer(dlw, &v1beta1.Deployment{}, resyncPeriod)
 	pinf := cache.NewSharedInformer(plw, &v1.Pod{}, resyncPeriod)
 	ninf := cache.NewSharedInformer(nlw, &v1.Node{}, resyncPeriod)
+	rsinf := cache.NewSharedInformer(rslw, &v1beta1.ReplicaSet{}, resyncPeriod)
 
 	dsLister := DaemonSetLister(func() (daemonsets []v1beta1.DaemonSet, err error) {
 		for _, c := range dsinf.GetStore().List() {
@@ -237,13 +245,22 @@ func initializeMetricCollection(kubeClient clientset.Interface) {
 		return machines, nil
 	})
 
+	replicaSetLister := ReplicaSetLister(func() (replicasets []v1beta1.ReplicaSet, err error) {
+		for _, c := range rsinf.GetStore().List() {
+			replicasets = append(replicasets, *(c.(*v1beta1.ReplicaSet)))
+		}
+		return replicasets, nil
+	})
+
 	prometheus.MustRegister(&daemonsetCollector{store: dsLister})
 	prometheus.MustRegister(&deploymentCollector{store: dplLister})
 	prometheus.MustRegister(&podCollector{store: podLister})
 	prometheus.MustRegister(&nodeCollector{store: nodeLister})
+	prometheus.MustRegister(&replicasetCollector{store: replicaSetLister})
 
 	go dsinf.Run(context.Background().Done())
 	go dinf.Run(context.Background().Done())
 	go pinf.Run(context.Background().Done())
 	go ninf.Run(context.Background().Done())
+	go rsinf.Run(context.Background().Done())
 }
